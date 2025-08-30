@@ -11,6 +11,7 @@ use App\Models\Lot;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
@@ -46,9 +47,9 @@ class ProductController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:products,name',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'image' => 'nullable|string',
             'lots.*.number' => 'required|string|max:255',
-            'lots.*.description' => 'nullable|string',
+            'lots.*.description' => 'required|string',
         ]);
 
         if ($validator->fails()) {
@@ -59,7 +60,21 @@ class ProductController extends Controller
         try {
             $imagePath = null;
             if ($request->hasFile('image')) {
-                $imagePath = $request->file('image')->store('products', 'public');
+                // 1. Get the Base64 string from the request
+                $base64Image = $request->image;
+
+                // 2. Decode the Base64 string
+                // Explode the string to get the data part
+                @list($type, $data) = explode(';', $base64Image);
+                @list(, $data)      = explode(',', $data);
+                $imageData = base64_decode($data);
+
+                // 3. Generate a unique filename
+                $imageName = Str::random(20) . '.jpg';
+
+                // 4. Save the image to storage
+                Storage::disk('public')->put('products/' . $imageName, $imageData);
+                $imagePath = 'products/' . $imageName;
             }
 
             $product = Product::create([
@@ -76,13 +91,13 @@ class ProductController extends Controller
                 }
             }
 
-            DB::commit(); // Commit the transaction
-
-            return redirect()->route('admin.products.index')->with('success', 'Product created successfully.');
+            DB::commit();
+            toastr()->success('Product created successfully.');
+            return redirect()->route('admin.products.index');
 
         } catch (\Exception $e) {
-            DB::rollBack(); // Rollback on error
-            // Optionally log the error: Log::error($e->getMessage());
+            DB::rollBack();
+            toastr()->error('Failed to create product. Please try again.');
             return redirect()->back()->with('error', 'Failed to create product. Please try again.')->withInput();
         }
     }
@@ -112,7 +127,7 @@ class ProductController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:products,name,' . $product->id,
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'image' => 'nullable|string',
             'lots.*.number' => 'required|string|max:255',
             'lots.*.description' => 'nullable|string',
         ]);
@@ -162,16 +177,15 @@ class ProductController extends Controller
      */
     public function destroy(string $id)
     {
+        $product = Product::findOrFail($id); // Find the product first
+
         DB::beginTransaction();
         try {
             if ($product->image) {
                 Storage::disk('public')->delete($product->image);
             }
-
-            $product->delete();
-
+            $product->delete(); // This will now work
             DB::commit();
-
             return redirect()->route('admin.products.index')->with('success', 'Product deleted successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -180,28 +194,28 @@ class ProductController extends Controller
     }
     public function fetchLots(Product $product)
     {
-        // Eager load the lots and return them as JSON
         $product->load('lots');
         return response()->json($product->lots);
     }
     public function displayQrImage(Lot $lot)
     {
-        // Generate the URL that the QR code will point to
         $url = route('public.form', $lot->id);
 
-        // Generate the QR code as a PNG image stream
-        $qrCode = QrCode::format('png')->size(300)->generate($url);
+        // Force the SVG writer for display too
+        $qrCode = QrCode::format('svg')->size(300)->generate($url);
 
-        // Return the image as a response without forcing a download
-        return Response::make($qrCode, 200, ['Content-Type' => 'image/png']);
+        return response($qrCode, 200, ['Content-Type' => 'image/svg+xml']);
     }
-    public function downloadQr(Product $product)
+    public function downloadQr(Lot $lot)
     {
-        $url = route('public.form', $product->id);
-        $qrCode = QrCode::format('png')->size(300)->generate($url);
+        $url = route('public.form', $lot->id);
+
+        // Force the SVG writer
+        $qrCode = QrCode::format('svg')->size(300)->generate($url);
+
         $headers = [
-            'Content-Type' => 'image/png',
-            'Content-Disposition' => 'attachment; filename="product_qr_' . $product->id . '.png"',
+            'Content-Type' => 'image/svg+xml', // Change content type
+            'Content-Disposition' => 'attachment; filename="lot_qr_' . $lot->id . '.svg"', // Change extension
         ];
         return response($qrCode, 200, $headers);
     }

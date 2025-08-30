@@ -11,13 +11,14 @@
             <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="navigation"
                 aria-label="Main navigation" data-accordion="false" id="navigation">
                 <li class="nav-item">
-                    <a href="#" class="nav-link {{ Request::is('admin/dashboard') ? 'active' : '' }}">
+                    <a href="{{ route('admin.dashboard') }}" class="nav-link {{ Request::is('admin/dashboard') ? 'active' : '' }}">
                         <i class="nav-icon bi bi-speedometer"></i>
                         <p>
                             Dashboard
                         </p>
                     </a>
                 </li>
+
                 <li class="nav-item">
                     <a href="{{route('admin.products.index')}}" class="nav-link {{ Request::is('admin/products.*') ? 'active' : '' }}">
                         <i class="nav-icon bi bi-box"></i>
@@ -27,7 +28,6 @@
                     </a>
                 </li>
 
-                <!-- ADD THIS NEW LINK for Lot Inquiries -->
                 <li class="nav-item">
                     <a href="{{ route('admin.lot-inquiries.index') }}" class="nav-link {{ request()->routeIs('admin.lot-inquiries.*') ? 'active' : '' }}">
                         <i class="nav-icon bi bi-patch-question-fill"></i>

@@ -5,7 +5,14 @@
         <div class="container-fluid">
             <div class="row">
                 <div class="col-sm-6">
-                    <h3 class="mb-0">Lot Inquiries</h3>
+                    <div class="btn-group d-flex justify-content-between" role="group">
+                        <h3 class="mb-0">Lot Inquiries</h3>
+                        <div>
+                            <a href="{{ route('admin.inquiries.export') }}" class="btn btn-success">
+                                <i class="bi bi-file-earmark-excel"></i> Export Inquiries
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -13,10 +20,10 @@
 
     <div class="app-content">
         <div class="container-fluid">
-            @if(session('success'))
+            @if (session('success'))
                 <div class="alert alert-success">{{ session('success') }}</div>
             @endif
-            @if(session('error'))
+            @if (session('error'))
                 <div class="alert alert-danger">{{ session('error') }}</div>
             @endif
 
@@ -24,8 +31,9 @@
                 <table class="table table-bordered table-hover">
                     <thead>
                         <tr>
-                            <th>ID</th>
+                            <th>SL</th>
                             <th>Product Name</th>
+                            <th>Lot Number</th>
                             <th>Inquirer Name</th>
                             <th>Mobile</th>
                             <th>Address</th>
@@ -36,21 +44,20 @@
                     <tbody>
                         @forelse ($inquiries as $inquiry)
                             <tr>
-                                <td>{{ $inquiry->id }}</td>
+                                <td>{{ $loop->iteration }}</td>
                                 <td>
-                                    {{-- Link to the product if it still exists --}}
-                                    @if($inquiry->product)
-                                        <a href="{{ route('admin.products.show', $inquiry->product->id) }}">{{ $inquiry->product->name }}</a>
-                                    @else
-                                        <span class="text-muted">Product Deleted</span>
-                                    @endif
+                                    <a href="{{ route('admin.products.show', $inquiry->product_id) }}"
+                                        style="text-decoration: none; color: inherit;">{{ $inquiry->product_name }}</a>
                                 </td>
+                                <td>{{ $inquiry->lot_number }}</td>
                                 <td>{{ $inquiry->name }}</td>
                                 <td>{{ $inquiry->mobile }}</td>
                                 <td>{{ $inquiry->address }}</td>
                                 <td>{{ $inquiry->created_at->format('d M, Y h:i A') }}</td>
                                 <td>
-                                    <form action="{{ route('admin.lot-inquiries.destroy', $inquiry->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this inquiry?');">
+                                    <form action="{{ route('admin.lot-inquiries.destroy', $inquiry->id) }}" method="POST"
+                                        class="d-inline"
+                                        onsubmit="return confirm('Are you sure you want to delete this inquiry?');">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-danger" title="Delete">

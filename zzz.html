@@ -1,0 +1,77 @@
+<?php
+
+namespace App\Http\Controllers\admin;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use App\Models\Product;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+
+class ProductController extends Controller
+{
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255|unique:products,name',
+            'image' => 'required|string', // The Base64 data is a string
+            'lots.*.number' => 'required|string|max:255',
+            'lots.*.description' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        DB::beginTransaction();
+        try {
+            $imagePath = null;
+            // Check if the image data is present
+            if ($request->filled('image')) {
+                // 1. Get the Base64 string from the request
+                $base64Image = $request->image;
+
+                // 2. Decode the Base64 string
+                // Explode the string to get the data part
+                @list($type, $data) = explode(';', $base64Image);
+                @list(, $data)      = explode(',', $data);
+                $imageData = base64_decode($data);
+
+                // 3. Generate a unique filename
+                $imageName = Str::random(20) . '.jpg';
+
+                // 4. Save the image to storage
+                Storage::disk('public')->put('products/' . $imageName, $imageData);
+                $imagePath = 'products/' . $imageName;
+            }
+
+            $product = Product::create([
+                'name' => $request->name,
+                'image' => $imagePath,
+            ]);
+
+            if ($request->has('lots')) {
+                foreach ($request->lots as $lotData) {
+                    $product->lots()->create([
+                        'number' => $lotData['number'],
+                        'description' => $lotData['description'],
+                    ]);
+                }
+            }
+
+            DB::commit();
+            // Assuming you have a toastr helper or similar notification system
+            // toastr()->success('Product created successfully.');
+            return redirect()->route('admin.products.index')->with('success', 'Product created successfully.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            // toastr()->error('Failed to create product. Please try again.');
+            return redirect()->back()->with('error', 'Failed to create product. Error: ' . $e->getMessage())->withInput();
+        }
+    }
+
+    // ... other methods
+}

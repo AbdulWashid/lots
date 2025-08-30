@@ -19,7 +19,7 @@
         <div class="container-fluid">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">{{ $product->name }}</h5>
+                    <h5 class="card-title">{{ $product->name }}</h5> <br>
 
                     @if ($product->image)
                         <img src="{{ asset('storage/' . $product->image) }}" class="img-fluid my-3"

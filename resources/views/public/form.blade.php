@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lot Information for: {{ $product->name }}</title>
+    <title>Lot Information for: {{ $lot->number }}</title>
 
     <!-- Stylesheets -->
     <link rel="stylesheet" href="{{ asset('css/fontsource.css') }}" />
@@ -35,8 +35,7 @@
                         <h4>Inquiry for: {{ $lot->name }}</h4>
                     </div>
                     <div class="card-body">
-                        <p>To view the lot descriptions for this product, please provide your details below.</p>
-
+                        <p>To view the lot descriptions for this Lot, please provide your details below.</p>
                         <form action="{{ route('public.handleForm', $lot->id) }}" method="POST">
                             @csrf
                             <div class="mb-3">

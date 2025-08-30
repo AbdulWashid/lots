@@ -22,8 +22,6 @@ class Product extends Model
     protected static function booted()
     {
         static::deleting(function ($product) {
-            // This is handled by onDelete('cascade') in the migration,
-            // but it's good practice to have it here as a fallback.
             $product->lots()->delete();
         });
     }

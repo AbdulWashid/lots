@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('lot_inquiries', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('product_id')->constrained()->onDelete('cascade');
+            $table->foreignId('lot_id')->constrained()->onDelete('cascade');
             $table->string('name');
             $table->string('mobile');
             $table->text('address');

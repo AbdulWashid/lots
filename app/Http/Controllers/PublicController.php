@@ -11,24 +11,21 @@ Use Illuminate\Support\Facades\Auth;
 
 class PublicController extends Controller
 {
-    public function showForm(Request $request, Lot $lot)
+    public function showForm(Request $request,$id)
     {
+        $lot = Lot::findOrFail($id);
         if ($request->session()->get('inquiry_success_for_lot_' . $lot->id) || Auth::check()) {
             $lot->load('product');
             return view('public.lots', compact('lot'));
         }
-
-
-        // Otherwise, show the inquiry form
         return view('public.form', compact('lot'));
     }
 
     /**
      * Handle the submission of the public form.
      */
-    public function handleForm(Request $request, Lot $lot)
+    public function handleForm(Request $request, $id)
     {
-        // 1. Validate the incoming data
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'mobile' => 'required|string|max:15',
@@ -39,19 +36,16 @@ class PublicController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        // 2. Store the inquiry data in the database
         LotInquiry::create([
-            'product_id' => $product->id,
+            'lot_id' => $id,
             'name' => $request->name,
             'mobile' => $request->mobile,
             'address' => $request->address,
         ]);
 
-        // 3. Set a session flag to indicate successful submission for this specific lot
-        $request->session()->put('inquiry_success_for_lot_' . $lot->id, true);
+        $request->session()->put('inquiry_success_for_lot_' . $id, true);
 
-        // 4. Redirect back to the same URL, which will now show the lot details
-        return redirect()->route('public.form', $lot->id)
+        return redirect()->route('public.form', $id)
                          ->with('success', 'Thank you! You can now view the lot details.');
     }
 }
