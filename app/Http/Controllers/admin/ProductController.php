@@ -47,7 +47,7 @@ class ProductController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:products,name',
-            'image' => 'nullable|string',
+            'image' => 'nullable|string', // Correct for Base64
             'lots.*.number' => 'required|string|max:255',
             'lots.*.description' => 'required|string',
         ]);
@@ -59,12 +59,12 @@ class ProductController extends Controller
         DB::beginTransaction();
         try {
             $imagePath = null;
-            if ($request->hasFile('image')) {
+            // CORRECTED: Check if the 'image' input string is present, not if it's a file.
+            if ($request->filled('image')) {
                 // 1. Get the Base64 string from the request
                 $base64Image = $request->image;
 
                 // 2. Decode the Base64 string
-                // Explode the string to get the data part
                 @list($type, $data) = explode(';', $base64Image);
                 @list(, $data)      = explode(',', $data);
                 $imageData = base64_decode($data);
@@ -94,13 +94,13 @@ class ProductController extends Controller
             DB::commit();
             toastr()->success('Product created successfully.');
             return redirect()->route('admin.products.index');
-
         } catch (\Exception $e) {
             DB::rollBack();
             toastr()->error('Failed to create product. Please try again.');
-            return redirect()->back()->with('error', 'Failed to create product. Please try again.')->withInput();
+            return redirect()->back()->with('error', 'Failed to create product: ' . $e->getMessage())->withInput();
         }
     }
+
 
     /**
      * Display the specified resource.
@@ -127,7 +127,7 @@ class ProductController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:products,name,' . $product->id,
-            'image' => 'nullable|string',
+            'image' => 'nullable|string', // Correct for Base64
             'lots.*.number' => 'required|string|max:255',
             'lots.*.description' => 'nullable|string',
         ]);
@@ -140,13 +140,21 @@ class ProductController extends Controller
         try {
             $productData = $request->only('name');
 
-            // Handle image update
-            if ($request->hasFile('image')) {
+            // CORRECTED: Handle image update from Base64 string
+            if ($request->filled('image')) {
                 // Delete the old image if it exists
                 if ($product->image) {
                     Storage::disk('public')->delete($product->image);
                 }
-                $productData['image'] = $request->file('image')->store('products', 'public');
+
+                // Decode and save the new Base64 image
+                $base64Image = $request->image;
+                @list($type, $data) = explode(';', $base64Image);
+                @list(, $data)      = explode(',', $data);
+                $imageData = base64_decode($data);
+                $imageName = Str::random(20) . '.jpg';
+                Storage::disk('public')->put('products/' . $imageName, $imageData);
+                $productData['image'] = 'products/' . $imageName;
             }
 
             $product->update($productData);
@@ -163,14 +171,14 @@ class ProductController extends Controller
             }
 
             DB::commit();
-
-            return redirect()->route('admin.products.index')->with('success', 'Product updated successfully.');
-
+            toastr()->success('Product updated successfully.');
+            return redirect()->route('admin.products.index');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()->with('error', 'Failed to update product. Please try again.')->withInput();
         }
     }
+
 
     /**
      * Remove the specified resource from storage.
@@ -184,12 +192,14 @@ class ProductController extends Controller
             if ($product->image) {
                 Storage::disk('public')->delete($product->image);
             }
-            $product->delete(); // This will now work
+            $product->delete();
             DB::commit();
-            return redirect()->route('admin.products.index')->with('success', 'Product deleted successfully.');
+            toastr()->success('Product deleted successfully.');
+            return redirect()->route('admin.products.index');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->route('admin.products.index')->with('error', 'Failed to delete product.');
+            toastr()->error('Failed to delete product.');
+            return redirect()->route('admin.products.index');
         }
     }
     public function fetchLots(Product $product)
@@ -200,22 +210,16 @@ class ProductController extends Controller
     public function displayQrImage(Lot $lot)
     {
         $url = route('public.form', $lot->id);
-
-        // Force the SVG writer for display too
         $qrCode = QrCode::format('svg')->size(300)->generate($url);
-
         return response($qrCode, 200, ['Content-Type' => 'image/svg+xml']);
     }
     public function downloadQr(Lot $lot)
     {
         $url = route('public.form', $lot->id);
-
-        // Force the SVG writer
         $qrCode = QrCode::format('svg')->size(300)->generate($url);
-
         $headers = [
-            'Content-Type' => 'image/svg+xml', // Change content type
-            'Content-Disposition' => 'attachment; filename="lot_qr_' . $lot->id . '.svg"', // Change extension
+            'Content-Type' => 'image/svg+xml',
+            'Content-Disposition' => 'attachment; filename="lot_qr_' . $lot->id . '.svg"',
         ];
         return response($qrCode, 200, $headers);
     }
